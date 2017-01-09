@@ -3,9 +3,20 @@ package state
 import (
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/hashicorp/terraform/terraform"
 )
+
+// lock metadata structure for local locks
+type lockInfo struct {
+	// The time the lock was taken
+	Time time.Time
+	// The time this lock expires
+	Expires time.Time
+	// The lock reason passed to State.Lock
+	Reason string
+}
 
 // LocalState manages a state storage that is local to the filesystem.
 type LocalState struct {
@@ -18,6 +29,9 @@ type LocalState struct {
 	state     *terraform.State
 	readState *terraform.State
 	written   bool
+
+	lockPath     string
+	lockInfoPath string
 }
 
 // SetState will force a specific state in-memory for this local state.
@@ -29,6 +43,15 @@ func (s *LocalState) SetState(state *terraform.State) {
 // StateReader impl.
 func (s *LocalState) State() *terraform.State {
 	return s.state.DeepCopy()
+}
+
+// Lock implements a local filesystem state.Locker.
+func (s *LocalState) Lock(reason string) error {
+	return s.lock(reason)
+}
+
+func (s *LocalState) Unlock() error {
+	return s.unlock()
 }
 
 // WriteState for LocalState always persists the state as well.
